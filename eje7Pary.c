@@ -18,7 +18,9 @@ int main(void){
     
     LPC_GPIOINT->IO0IntEnR |= (1<<0);
     LPC_GPIOINT->IO2IntEnR |= (1<<0);
-    NVIC_EnableIRQ(EINT0_IRQn);
+
+    //EINT3 se puede utilizar como interrupcion externa de todos los pines del puerto 0 y 2
+    NVIC_EnableIRQ(EINT3_IRQn);
     while(1){
     }
 }

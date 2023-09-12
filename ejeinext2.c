@@ -14,6 +14,7 @@
 
 void configPorts();
 void configInt();
+void delay();
 
 int main(void){
     configPorts();
@@ -38,6 +39,10 @@ void configInt(void){
     //Limpio las flags de interrupciones por EINT0 y EINT1
     LPC_SC->EXTINT &= ~(0x03<<0);
 
+    //Configuracion de las prioridades
+    NVIC_SetPriority(EINT0_IRQn,1);
+    NVIC_SetPriority(EINT1_IRQn,0);
+    
     //Habilito las interrupciones
     NVIC_EnableIRQ(EINT0_IRQn);
     NVIC_EnableIRQ(EINT1_IRQn);
@@ -45,10 +50,21 @@ void configInt(void){
 }
 
 void EINT0_IRQnHandler(void){
-    if(NVIC_GetPendingIRQ(EINT1_IRQn))
+    if(!NVIC_GetPendingIRQ(EINT1_IRQn)){
+        char ascii = 'A';
+        LPC_GPIO1->FIOSET |= (ascii<<16);
+    }
+    LPC_SC->EXTINT &= ~(0x01<<1);
 }
 
 void EINT1_IRQnHandler(void){
     if(!NVIC_GetPendingIRQ(EINT0_IRQn)){
         char ascii = 'a';
+        LPC_GPIO1->FIOSET |= (ascii<<16);
+    }
+    LPC_SC->EXTINT &= ~(0x01<<1);
+}
+
+void delay(void){
+    for(int i = 0; i < 10*10^6; i++){}
 }

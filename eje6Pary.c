@@ -1,14 +1,10 @@
 /**
- * Realizar un programa que configure el puerto P2.0 y P2.1
- * para que provoquen una interrupción por flanco de subida
+ * Realizar un programa que configure el puerto P2.0 y P2.1 para que provoquen una interrupción por flanco de subida
  * para el primer pin y por flanco de bajada para el segundo.
- * Cuando la interrupción sea por P2.0 se enviará por el pin
- * P0.0 la secuencia de bits 010011010.
- * Si la interrupción es por P2.1 se enviará por el pin P0.1
- * la secuencia 011100110. Las secuencias se envían únicamente
- * cuando se produce una interrupción, en caso contrario la salida de los
- * pines tienen valores 1 lógicos. ¿que prioridad tienen configuradas por
- * defecto estas interrupciones?
+ * Cuando la interrupción sea por P2.0 se enviará por el pin P0.0 la secuencia de bits 010011010.
+ * Si la interrupción es por P2.1 se enviará por el pin P0.1 la secuencia 011100110. Las secuencias se envían únicamente
+ * cuando se produce una interrupción, en caso contrario la salida de los pines tienen valores 1 lógicos. 
+ * ¿que prioridad tienen configuradas por defecto estas interrupciones?
 */
 
 #include "LPC17xx.h"
@@ -73,6 +69,6 @@ void setValues(uint32_t aux[9], int type){
 }
 
 void delay(){
-    for(int i = 0; i < 12000000; i++){
+    for(int i = 0; i < 10000000; i++){
     }
 }

@@ -1,8 +1,4 @@
-#ifdef __USE_CMSIS
 #include "LPC17xx.h"
-#endif
-
-#include <cr_section_macros.h>
 
 int main(void) {
 	LPC_GPIO0->FIODIR |= (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4) | (1 << 5) | (1 << 6) | (1 << 7);
