@@ -1,6 +1,5 @@
-#ifdef __USE_CMSIS
 #include "LPC17xx.h"
-#endif
+
 
 #include <stdio.h>
 

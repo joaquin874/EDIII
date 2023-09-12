@@ -35,11 +35,13 @@ void EINT3_IRQHandler(void){
         uint32_t valueaux = {0,1,0,0,1,1,0,1,0};
         setValues(valueaux, 0);
         delay();
+        LPC_GPIOINT->IO2IntClr &= ~(1<<0);
     }
     else if(LPC_GPIOINT->IO2IntStatF & (1<<1)){
         uint32_t valueaux = {0,1,1,1,0,0,1,1,0};
         setValues(valueaux, 1);
         delay();
+        LPC_GPIOINT->IO2IntClr &= ~(1<<1);
     }
 }
 

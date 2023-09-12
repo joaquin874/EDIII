@@ -28,9 +28,11 @@ int main(void){
 void EINT3_IRQHandler(void){
     if(LPC_GPIOINT->IO0IntStatR & (1<<0)){
         auxiliar = 0x27;
+        LPC_GPIOINT->IO0IntClr &= ~(1<<0);
     }
     else if(LPC_GPIOINT->IO2IntStatR & (1<<0)){
         auxiliar = 0x72D6;
+        LPC_GPIOINT->IO2IntClr &= ~(1<<0);
     }
 }
 
