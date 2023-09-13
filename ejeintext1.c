@@ -6,7 +6,7 @@ void configINT(void){
     LPC_PINCON->PINSEL4 |= (0x01<<24);
 
     //Configuro las interrupciones externas por flanco (ya sea de subida o bajada)
-    LPC_SC->EXTINT &= ~(0x03<<1);
+    LPC_SC->EXTINT |= (0x03<<1);
     LPC_SC->EXTMODE |= (0x03<<1);
 
     //EINT1 por flanco de bajada

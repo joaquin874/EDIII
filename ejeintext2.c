@@ -37,7 +37,8 @@ void configInt(void){
     LPC_SC->EXTPOLAR |= (0x03<<0);
 
     //Limpio las flags de interrupciones por EINT0 y EINT1
-    LPC_SC->EXTINT &= ~(0x03<<0);
+    //Se limpian las flag seteando 1 a EXINT
+    LPC_SC->EXTINT |= (0x03<<0);
 
     //Configuracion de las prioridades
     NVIC_SetPriority(EINT0_IRQn,1);
