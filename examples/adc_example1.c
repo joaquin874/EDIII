@@ -27,7 +27,7 @@ void confADC(){
 
 	LPC_SC->PCONP |= (1<<12); //enciende el periferico ADC
 	LPC_ADC->ADCR |= (1<<21);//PDN A/D converter is oprational
-	LPC_SC->PCLKSEL0 |= (3<<24); //Seleccionamos el PCLK=CCLK/8 =12.5Mhz
+	LPC_SC->PCLKSEL0 |= (3<<24); //Seleccionamos el PCLK=CCLK/8 = 12.5Mhz
 	LPC_PINCON->PINSEL1 = (1<<18);//Usamos todos por defecto menos el p0.25 en modo ADC0.2
 	LPC_PINCON->PINSEL4 = (1<<20);//Usamos todos por defecto menos el p2.10 en EINT0
 	LPC_PINCON->PINMODE1 = (1<<19);//Todas por defecto menos el p0.25 ni pull up ni pull down
