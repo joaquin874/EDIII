@@ -29,7 +29,7 @@ GPDMA_Channel_CFG_Type DMACFG;
 
 volatile uint32_t Channel0_TC;
 volatile uint32_t Channel0_Err;
-#include <cr_section_macros.h>
+//#include <cr_section_macros.h>
 
 int main(void) {
 	SystemInit();

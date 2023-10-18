@@ -8,14 +8,12 @@
 ===============================================================================
 */
 
-#ifdef __USE_CMSIS
 #include "LPC17xx.h"
-#endif
+
 #include "lpc17xx_gpdma.h"
 #include "lpc17xx_pinsel.h"
 #include "lpc17xx_dac.h"
 
-#include <cr_section_macros.h>
 void confPin();
 void confDMA();
 void confDAC();

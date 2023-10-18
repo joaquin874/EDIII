@@ -38,7 +38,7 @@ void confADC(){
 	LPC_ADC->ADCR |= (1<<27); //por flanco descendente
 	LPC_ADC->ADINTEN |= (1<<2);
 	NVIC_EnableIRQ(ADC_IRQn);
-
+	
 }
 
 void ADC_IRQHandler (){
