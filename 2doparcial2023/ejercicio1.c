@@ -16,7 +16,7 @@
 
 uint32_t data[10] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 uint32_t highValue, lowValue;
-uint32_t egde = 0; //edge%2 != 0 low level, edge%2 = 0 high level
+uint32_t edge = 0; //edge%2 != 0 low level, edge%2 = 0 high level
 //TIMER 0 como capture y TIMER1 como match
 void configTimer0(void){
     LPC_PINCON->PINSEL3 |= (3<<20); //Select Cap0.0
@@ -37,6 +37,7 @@ void configTimer1(void){
     LPC_SC->PCONP |= (1<<2);
     LPC_SC->PCLKSEL0 |= (1<<4);
 
+    LPC_TIM1->PR = 99;
     LPC_TIM1->MR0 = 500000;
     LPC_TIM1->MCR |= (3<<0); //Interrupt MR0 and Reset TC on match MR0
     LPC_TIM1->IR |= (0x3F<<0);
@@ -59,11 +60,13 @@ void movData(void){
 }
 void TIMER0_IRQHandler(void){
     static uint8_t count = 0;
-    if(egde%2 == 0){
+    if(edge%2 == 0){
         highValue = LPC_TIM0->CR0;
+        edge++;
     }
     else{
         lowValue = LPC_TIM0->CR0;
+        edge++;
     }
     if((highValue > 0) && (lowValue > 0)){
         uint32_t dutyCycle = (highValue/(highValue + lowValue))*100;    //8 2 = 10
@@ -71,9 +74,9 @@ void TIMER0_IRQHandler(void){
         movData();
         data[0] = dutyCycle;
         highValue = 0;
-        lowValue = 0;
-        LPC_TIM0->IR |= (1<<4);
+        lowValue = 0;   
     }
+    LPC_TIM0->IR |= (1<<4);
 }
 
 void TIMER1_IRQHandler(void){
