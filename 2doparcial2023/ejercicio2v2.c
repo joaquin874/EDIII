@@ -33,7 +33,7 @@
 
 uint8_t edge = 1; //1 = rising y 2 = falling
 //uint32_t typeDMA = 0; //mod 0 ADC-DAC    mod !0 ADC-MEM
-GPDMA_LLI_Type LLI1, LLI2, LLI3, LLI4;
+GPDMA_LLI_Type LLI1, LLI2, LLI3, LLI4, LLI5, LLI6;
 
 void waveFormGenerator(void){
     static uint16_t value = 511;
@@ -64,12 +64,11 @@ void configADC(void){
     LPC_PINCON->PINMODE1 |= (2<<14);
 
     ADC_Init(LPC_ADC, 16000); // 16k ancho de banda
-    ADC_PowerdownCmd(LPC_ADC, ENABLE);
     ADC_ChannelCmd(LPC_ADC, ADC_CHANNEL_0, ENABLE);
     ADC_IntConfig(LPC_ADC, ADC_ADINTEN0, ENABLE);
     ADC_StartCmd(LPC_ADC, 0);
     ADC_BurstCmd(LPC_ADC, ENABLE);
-    NVIC_EnableIRQ(ADC_IRQn);
+    //NVIC_EnableIRQ(ADC_IRQn);
     NVIC_SetPriority(ADC_IRQn, 0);
     return;
 }
@@ -128,21 +127,63 @@ void configDMA(void){
 				   | (2<<18) //source width 16 bits
 				   | (2<<21) //dest width 16 bits
 				   | (1<<27); //destiny increment
-	GPDMA_Init();
+	
+    LLI5.SrcAddr = (uint32_t) SRAM0_0;
+	LLI5.DstAddr = (uint32_t) &LPC_DAC->DACR;
+	LLI5.NextLLI = (uint32_t) &LLI6;
+	LLI5.Control = 0xFFF
+				   | (2<<18) //source width 16 bits
+				   | (2<<21) //dest width 16 bits
+				   | (1<<26); //source increment
+
+    LLI6.SrcAddr = (uint32_t) SRAM0_0 + 0x1000;
+	LLI6.DstAddr = (uint32_t) &LPC_DAC->DACR;
+	LLI6.NextLLI = (uint32_t) &LLI5;
+	LLI6.Control = 0xFFF
+				   | (2<<18) //source width 16 bits
+				   | (2<<21) //dest width 16 bits
+				   | (1<<26); //source increment
+    GPDMA_Init();
 
     //AHB SRAM0 bank 0
-	GPDMA_Channel_CFG_Type GPDMACfg;
-	GPDMACfg.ChannelNum = 0;
-	GPDMACfg.SrcMemAddr = (uint32_t)SRAM0_1;
-	GPDMACfg.DstMemAddr = 0;
-	GPDMACfg.TransferSize = 0xFFF;
-	GPDMACfg.TransferWidth = 0;
-	GPDMACfg.TransferType = GPDMA_TRANSFERTYPE_M2P;
-	GPDMACfg.SrcConn = 0;
-	GPDMACfg.DstConn = GPDMA_CONN_DAC;
-	GPDMACfg.DMALLI = (uint32_t)&LLI3;
-	GPDMA_Setup(&GPDMACfg);
-    //NVIC_EnableIRQ(DMA_IRQn);
+	GPDMA_Channel_CFG_Type GPDMACfg1;
+	GPDMACfg1.ChannelNum = 1;
+	GPDMACfg1.SrcMemAddr = (uint32_t)SRAM0_1;
+	GPDMACfg1.DstMemAddr = 0;
+	GPDMACfg1.TransferSize = 0xFFF;
+	GPDMACfg1.TransferWidth = 0;
+	GPDMACfg1.TransferType = GPDMA_TRANSFERTYPE_M2P;
+	GPDMACfg1.SrcConn = 0;
+	GPDMACfg1.DstConn = GPDMA_CONN_DAC;
+	GPDMACfg1.DMALLI = (uint32_t)&LLI3;
+	GPDMA_Setup(&GPDMACfg1);
+
+    GPDMA_Channel_CFG_Type GPDMACfg2;
+	GPDMACfg2.ChannelNum = 0;
+	GPDMACfg2.SrcMemAddr = 0;
+	GPDMACfg2.DstMemAddr = (uint32_t)SRAM0_0;
+	GPDMACfg2.TransferSize = 0xFFF;
+	GPDMACfg2.TransferWidth = 0;
+	GPDMACfg2.TransferType = GPDMA_TRANSFERTYPE_P2M;
+	GPDMACfg2.SrcConn = GPDMA_CONN_ADC;
+	GPDMACfg2.DstConn = 0;
+	GPDMACfg2.DMALLI = (uint32_t)&LLI1;
+	GPDMA_Setup(&GPDMACfg2);
+    //Channel 0 ADC-MEM
+    GPDMA_ChannelCmd(0, DISABLE);
+
+    GPDMA_Channel_CFG_Type GPDMACfg3;
+	GPDMACfg3.ChannelNum = 2;
+	GPDMACfg3.SrcMemAddr = (uint32_t)SRAM0_0;
+	GPDMACfg3.DstMemAddr = 0;
+	GPDMACfg3.TransferSize = 0xFFF;
+	GPDMACfg3.TransferWidth = 0;
+	GPDMACfg3.TransferType = GPDMA_TRANSFERTYPE_M2P;
+	GPDMACfg3.SrcConn = 0;
+	GPDMACfg3.DstConn = GPDMA_CONN_DAC;
+	GPDMACfg3.DMALLI = (uint32_t)&LLI5;
+	GPDMA_Setup(&GPDMACfg3);
+    GPDMA_ChannelCmd(2, DISABLE);
     return;
 }
 
@@ -161,69 +202,19 @@ void EINT0_IRQHandler(void){
     static uint32_t mode = 0;
     if(LPC_SC->EXTINT & 1){
         if(mode % 2 == 0){
-            //saca conversion de adc
+            ADC_PowerdownCmd(LPC_ADC, DISABLE);
+            GPDMA_ChannelCmd(0, DISABLE);
+            GPDMA_ChannelCmd(1, DISABLE);
+            GPDMA_ChannelCmd(2, ENABLE);
         }
         else{
-            //saca triangular
+            ADC_PowerdownCmd(LPC_ADC, ENABLE);
+            GPDMA_ChannelCmd(0, ENABLE);
+            GPDMA_ChannelCmd(1, ENABLE);
+            GPDMA_ChannelCmd(2, DISABLE);
         }
     }
     LPC_SC->EXTINT = 1;
-    return;
-}
-
-void DMA_IRQHandler(void){
-    static uint32_t typeDMA1 = 0;
-    static uint32_t typeDMA2 = 0;
-    static uint32_t addrDMA;
-    static GPDMA_LLI_Type addrLLI;
-    if(GPDMA_IntGetStatus(GPDMA_STAT_INT, 0)){
-        if(typeDMA1 % 2 == 0){
-            addrDMA = SRAM0_0 + 0x1000;
-            addrLLI = LLI2;
-        }
-        else{
-            addrDMA = SRAM0_0;
-            addrLLI = LLI1;
-        }
-        GPDMA_Channel_CFG_Type GPDMACfg;
-        GPDMACfg.ChannelNum = 0;
-        GPDMACfg.SrcMemAddr = 0;
-        GPDMACfg.DstMemAddr = (uint32_t)addrDMA;
-        GPDMACfg.TransferSize = 0xFFF;
-        GPDMACfg.TransferWidth = 0;
-        GPDMACfg.TransferType = GPDMA_TRANSFERTYPE_P2M;
-        GPDMACfg.SrcConn = GPDMA_CONN_ADC;
-        GPDMACfg.DstConn = 0;
-        GPDMACfg.DMALLI = (uint32_t) &addrLLI;
-        GPDMA_Setup(&GPDMACfg);
-        GPDMA_ChannelCmd(0, DISABLE);
-        GPDMA_ClearIntPending (GPDMA_STATCLR_INTTC, 0);
-        typeDMA1++;
-    }
-    if(GPDMA_IntGetStatus(GPDMA_STAT_INT, 1)){
-        if(typeDMA2 % 2 == 0){
-            addrDMA = SRAM0_1 + 0x1000;
-            addrLLI = LLI3;
-        }
-        else{
-            addrDMA = SRAM0_1;
-            addrLLI = LLI2;
-        }
-        GPDMA_Channel_CFG_Type GPDMACfg;
-        GPDMACfg.ChannelNum = 1;
-        GPDMACfg.SrcMemAddr = (uint32_t)addrDMA;
-        GPDMACfg.DstMemAddr = 0;
-        GPDMACfg.TransferSize = 0xFFF;
-        GPDMACfg.TransferWidth = 0;
-        GPDMACfg.TransferType = GPDMA_TRANSFERTYPE_M2P;
-        GPDMACfg.SrcConn = 0;
-        GPDMACfg.DstConn = GPDMA_CONN_DAC;
-        GPDMACfg.DMALLI = (uint32_t) &addrLLI;
-        GPDMA_Setup(&GPDMACfg);
-        GPDMA_ChannelCmd(0, DISABLE);
-        GPDMA_ClearIntPending (GPDMA_STATCLR_INTTC, 1);
-        typeDMA2++;
-    }
     return;
 }
 
