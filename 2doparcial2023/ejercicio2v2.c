@@ -31,16 +31,15 @@
 #define SRAM0_0 0x2007C000
 #define SRAM0_1 0x2007E000
 
-uint8_t edge = 1; //1 = rising y 2 = falling
-//uint32_t typeDMA = 0; //mod 0 ADC-DAC    mod !0 ADC-MEM
 GPDMA_LLI_Type LLI1, LLI2, LLI3, LLI4, LLI5, LLI6;
 
 void waveFormGenerator(void){
     static uint16_t value = 511;
+    uint8_t edge = 1; //1 = rising y 2 = falling
     uint32_t *address1 = (uint32_t *) SRAM0_0;
     int i = 0;
     while(i < (SRAM0_1-SRAM0_0)){
-        *address1 = value;
+        *address1 = (value<<6);
         if(edge == 1){
             value++;
             if(value >= 1024){
@@ -63,13 +62,10 @@ void configADC(void){
     LPC_PINCON->PINSEL1 |= (1<<14);
     LPC_PINCON->PINMODE1 |= (2<<14);
 
-    ADC_Init(LPC_ADC, 16000); // 16k ancho de banda
+    ADC_Init(LPC_ADC, 32000); // 16k ancho de banda 32k frec muestreo
     ADC_ChannelCmd(LPC_ADC, ADC_CHANNEL_0, ENABLE);
-    ADC_IntConfig(LPC_ADC, ADC_ADINTEN0, ENABLE);
     ADC_StartCmd(LPC_ADC, 0);
     ADC_BurstCmd(LPC_ADC, ENABLE);
-    //NVIC_EnableIRQ(ADC_IRQn);
-    NVIC_SetPriority(ADC_IRQn, 0);
     return;
 }
 
@@ -94,58 +90,59 @@ void configDAC(void){
 
 //dma for 4 channels
 void configDMA(void){
-    const volatile uint32_t *addr = &LPC_ADC->ADDR0;
-    uint32_t checkAddr = (*addr>>0xF) & 0x3FF;
+    //MEM-DAC  triangular
 	LLI1.SrcAddr = (uint32_t) SRAM0_1;
 	LLI1.DstAddr = (uint32_t) &LPC_DAC->DACR;
 	LLI1.NextLLI = (uint32_t) &LLI2;
-	LLI1.Control = 0xFFF
-				   | (1<<18) //source width 16 bits
-				   | (1<<21) //dest width 16 bits
+	LLI1.Control = 0xFFF 
+				   | (2<<18) //source width 32 bits
+				   | (2<<21) //dest width 32 bits
 				   | (1<<26); //source increment
 
     LLI2.SrcAddr = (uint32_t) SRAM0_1 + 0x1000;
 	LLI2.DstAddr = (uint32_t) &LPC_DAC->DACR;
 	LLI2.NextLLI = (uint32_t) &LLI1;
 	LLI2.Control = 0xFFF
-				   | (2<<18) //source width 16 bits
-				   | (2<<21) //dest width 16 bits
+				   | (2<<18) //source width 32 bits
+				   | (2<<21) //dest width 32 bits
 				   | (1<<26); //source increment
-
-    LLI3.SrcAddr = (uint32_t) checkAddr;
+    
+    //ADC-MEM conversion ADC a memoria
+    LLI3.SrcAddr = (uint32_t) &LPC_ADC->ADDR0;  //Address ADC
 	LLI3.DstAddr = (uint32_t) SRAM0_0;
 	LLI3.NextLLI = (uint32_t) &LLI4;
 	LLI3.Control = 0xFFF
-				   | (2<<18) //source width 16 bits
-				   | (2<<21) //dest width 16 bits
+				   | (2<<18) //source width 32 bits
+				   | (2<<21) //dest width 32 bits
 				   | (1<<27); //destiny increment
 
-    LLI4.SrcAddr = (uint32_t) checkAddr + 0x1000;
-	LLI4.DstAddr = (uint32_t) SRAM0_0;
+    LLI4.SrcAddr = (uint32_t) &LPC_ADC->ADDR0;
+	LLI4.DstAddr = (uint32_t) SRAM0_0 + 0x1000;
 	LLI4.NextLLI = (uint32_t) &LLI3;
 	LLI4.Control = 0xFFF
-				   | (2<<18) //source width 16 bits
-				   | (2<<21) //dest width 16 bits
+				   | (2<<18) //source width 32 bits
+				   | (2<<21) //dest width 32 bits
 				   | (1<<27); //destiny increment
 	
+    //MEM-DAC conversion del ADC al DAC
     LLI5.SrcAddr = (uint32_t) SRAM0_0;
 	LLI5.DstAddr = (uint32_t) &LPC_DAC->DACR;
 	LLI5.NextLLI = (uint32_t) &LLI6;
 	LLI5.Control = 0xFFF
-				   | (2<<18) //source width 16 bits
-				   | (2<<21) //dest width 16 bits
+				   | (2<<18) //source width 32 bits
+				   | (2<<21) //dest width 32 bits
 				   | (1<<26); //source increment
 
     LLI6.SrcAddr = (uint32_t) SRAM0_0 + 0x1000;
 	LLI6.DstAddr = (uint32_t) &LPC_DAC->DACR;
 	LLI6.NextLLI = (uint32_t) &LLI5;
 	LLI6.Control = 0xFFF
-				   | (2<<18) //source width 16 bits
-				   | (2<<21) //dest width 16 bits
+				   | (2<<18) //source width 32 bits
+				   | (2<<21) //dest width 32 bits
 				   | (1<<26); //source increment
+    
     GPDMA_Init();
-
-    //AHB SRAM0 bank 0
+    //Channel 1 MEM-DAC Triangular
 	GPDMA_Channel_CFG_Type GPDMACfg1;
 	GPDMACfg1.ChannelNum = 1;
 	GPDMACfg1.SrcMemAddr = (uint32_t)SRAM0_1;
@@ -155,9 +152,11 @@ void configDMA(void){
 	GPDMACfg1.TransferType = GPDMA_TRANSFERTYPE_M2P;
 	GPDMACfg1.SrcConn = 0;
 	GPDMACfg1.DstConn = GPDMA_CONN_DAC;
-	GPDMACfg1.DMALLI = (uint32_t)&LLI3;
+	GPDMACfg1.DMALLI = (uint32_t)&LLI1;
 	GPDMA_Setup(&GPDMACfg1);
-
+    GPDMA_ChannelCmd(1, ENABLE);
+    
+    //Channel 0 ADC-MEM
     GPDMA_Channel_CFG_Type GPDMACfg2;
 	GPDMACfg2.ChannelNum = 0;
 	GPDMACfg2.SrcMemAddr = 0;
@@ -167,11 +166,11 @@ void configDMA(void){
 	GPDMACfg2.TransferType = GPDMA_TRANSFERTYPE_P2M;
 	GPDMACfg2.SrcConn = GPDMA_CONN_ADC;
 	GPDMACfg2.DstConn = 0;
-	GPDMACfg2.DMALLI = (uint32_t)&LLI1;
+	GPDMACfg2.DMALLI = (uint32_t)&LLI3;
 	GPDMA_Setup(&GPDMACfg2);
-    //Channel 0 ADC-MEM
-    GPDMA_ChannelCmd(0, DISABLE);
+    GPDMA_ChannelCmd(0, ENABLE);
 
+    //Channel 2 MEM-DAC
     GPDMA_Channel_CFG_Type GPDMACfg3;
 	GPDMACfg3.ChannelNum = 2;
 	GPDMACfg3.SrcMemAddr = (uint32_t)SRAM0_0;
